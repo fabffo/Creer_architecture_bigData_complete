@@ -1,0 +1,56 @@
+#! /usr/bin/env python
+import twitter # pip install twitter
+from datetime import datetime
+from kafka import KafkaProducer
+import json
+from math import *
+import os
+producer = KafkaProducer(bootstrap_servers="localhost:9092")
+message_hastag = {}
+timestamp = 0
+
+def main():
+    # Put here your Twitter API credentials obtained at https://apps.twitter.com/
+    # Note: you need a Twitter account to create an app.
+    oauth = twitter.OAuth("705458787696644096-sMHAmLFdlPefs31tAZSpVsqjrfb5s17", "qoro9zDfSk3Tc0tCCLNbinGU97bsVTUF2WK5bSPbg6fcf", "HpqBrbvLAtpXC0zcN03yLKNfY", "UoYoiLf6SFaM1JOzBDcPTfP3yiuvfFWe4FcYq3tWbDdmakAIbz")
+    t = twitter.TwitterStream(auth=oauth)
+
+    sample_tweets_in_english = t.statuses.sample(language="en")
+    for tweet in sample_tweets_in_english:
+       if "delete" in tweet:
+           # Deleted tweet events do not have any associated text
+           continue
+
+       print("===================================")
+
+       #Tweet text
+       print(tweet["text"])
+
+       # Collect hashtags
+       hashtags = [h['text'] for h in tweet["entities"]["hashtags"]]
+       if len(hashtags) > 0:
+           print(hashtags)
+           # current date and time
+           now = datetime.now()
+           timestamp = int(floor(datetime.timestamp(now)))
+
+           message_hastag["datehashtag"] = datetime.today().strftime('%Y/%m/%d %H:%M:%S')
+           message_hastag["timestamp"] = timestamp
+           message_hastag["hashtags"] = hashtags
+
+           producer.send("topic_hashtags", json.dumps(message_hastag).encode(),
+                         key=str(timestamp).encode())
+
+           print(message_hastag)
+           print(now)
+
+
+
+if __name__ == "__main__":
+    # nom du processus
+    p = os.getpid()
+    print("le nom du processus:", p)
+    with open("pidTwitter.txt", "w") as fic:
+        fic.write(str(p))
+
+    main()
